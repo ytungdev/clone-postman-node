@@ -67,7 +67,7 @@
             kN.val('');
             kN.removeAttr('name');
             vN.val('');
-            vN.removeAttr('name'); 
+            vN.removeAttr('name');
         }
 
         function sendReq() {
@@ -76,35 +76,46 @@
             // console.log('submitted');
             if (formMethod != '' && url) {
                 console.log(`${formMethod} - ${url}`);
-                
-                var keys = $('input[name="k[]"]').map(function(){ 
-                    return this.value; 
+
+                var keys = $('input[name="k[]"]').map(function () {
+                    return this.value;
                 }).get();
 
-                var vals = $('input[name="v[]"]').map(function(){ 
-                    return this.value; 
+                var vals = $('input[name="v[]"]').map(function () {
+                    return this.value;
                 }).get();
 
                 var data = {}
-                for (let i in keys){
-                    data[keys[i]] = vals[i]
+                data["url"] = url;
+                data["method"] = formMethod;
+                data["param"] = {};
+                for (let i in keys) {
+                    data["param"][keys[i]] = vals[i]
                 }
                 console.log(data)
                 $.ajax({
-                    type: formMethod,
-                    url: url,
+                    type: "POST",
+                    url: "http://localhost:3000/req",
                     data: data, // serializes the form's elements.
                     success: function (res, textStatus, req) {
-                        console.log(res);
-                        $('#resHeader').html(req.getResponseHeader("Content-Length"));
-                        $('#resBody').html(res);
+                        console.log("res");
+                        $('#resStatus').html(`${req.status} - ${textStatus}`);
+                        let headers = req.getAllResponseHeaders();
+                        console.log(headers)
+                        $('#resHeader').html(headers.replace('\n', '<br/>'));
+                        let resString = JSON.stringify(res);
+                        let resHTML = resString.replaceAll(",", ",<br/>    ")
+                        resHTML = resHTML.replace("{", "{<br/>    ")
+                        resHTML = resHTML.replace(/\}$/, '<br/>}');
+                        console.log(resHTML);
+                        $('#resBody').html(resHTML);
                     }
                 });
             }
 
         };
 
-        function testing(){
+        function testing() {
             $('#urlInp').val('http://localhost:5001/api');
             $('#k1').val('k1').change();
             $('#v1').val('v1').change();
@@ -120,7 +131,7 @@
             <p class="lead">
                 Tools to send requests with an UI.
             </p>
-            <button onclick="testing()">Test</button>
+            <button class="btn btn-secondary" onclick="testing()">Test</button>
         </div>
         <hr class="my-4">
         <div class="row">
@@ -195,11 +206,21 @@
                 <div class="card">
                     <h3 class="card-header">Response</h3>
                     <div class="card-body">
-                        <div id="resHeader"></div>
+                        <var>
+                            <div id="resStatus"></div>
+                        </var>
                     </div>
-                    <hr class="my-1">
+                    <hr class="my-1" />
                     <div class="card-body">
-                        <div id="resBody"></div>
+                        <code>
+                            <div id="resHeader"></div>
+                        </code>
+                    </div>
+                    <hr class="my-1" />
+                    <div class="card-body">
+                        <pre>
+                            <div id="resBody"></div>
+                        </pre>
                     </div>
                 </div>
             </div>
