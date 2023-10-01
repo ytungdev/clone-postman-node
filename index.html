@@ -7,19 +7,24 @@
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 
-    <!-- Latest compiled and minified CSS -->
+    <!-- Boostrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
 
-    <!-- Latest compiled and minified JavaScript -->
+    <!-- Boostrap JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
         crossorigin="anonymous"></script>
 
+    <!-- Axios -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
 
     <title>request-tools</title>
     <style>
-
+        pre {
+            margin-bottom: 0;
+        }
     </style>
     <script>
 
@@ -60,7 +65,6 @@
                 vN.attr('name', `v[]`);
             }
         }
-
         function deactivateRow(n) {
             var kN = $(`#k${n}`)
             var vN = $(`#v${n}`)
@@ -71,12 +75,10 @@
         }
 
         function sendReq() {
+            const indent = 4;
             var form = $('#reqForm');
             var url = $('#urlInp').val();
-            // console.log('submitted');
             if (formMethod != '' && url) {
-                console.log(`${formMethod} - ${url}`);
-
                 var keys = $('input[name="k[]"]').map(function () {
                     return this.value;
                 }).get();
@@ -87,57 +89,122 @@
 
                 var data = {}
                 data["url"] = url;
-                data["method"] = formMethod;
+                data["method"] = formMethod == 'GET' ? 'get' : 'post';
                 data["param"] = {};
                 for (let i in keys) {
                     data["param"][keys[i]] = vals[i]
                 }
                 console.log(data)
-                $.ajax({
-                    type: "POST",
-                    url: "http://localhost:3000/req",
-                    data: data, // serializes the form's elements.
-                    success: function (res, textStatus, req) {
-                        console.log("res");
-                        $('#resStatus').html(`${req.status} - ${textStatus}`);
-                        let headers = req.getAllResponseHeaders();
-                        console.log(headers)
-                        $('#resHeader').html(headers.replace('\n', '<br/>'));
-                        let resString = JSON.stringify(res);
-                        let resHTML = resString.replaceAll(",", ",<br/>    ")
-                        resHTML = resHTML.replace("{", "{<br/>    ")
-                        resHTML = resHTML.replace(/\}$/, '<br/>}');
-                        console.log(resHTML);
-                        $('#resBody').html(resHTML);
-                    }
+
+                // print REQ
+                axios.interceptors.request.use(request => {
+                    console.log(request)
+                    return request
                 });
+
+                // print RES
+                axios({
+                    method: 'post',
+                    url: '../proxy',
+                    data: data,
+                    headers: {
+                        'Access-Control-Allow-Origin': '*',
+                        // 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
+                    }
+                }).then((proxyRes) => {
+                    console.log('proxyRes');
+                    console.log(proxyRes);
+
+                    // display REQ
+                    let req = proxyRes.data.req;
+                    $('#reqHeader').html(JSON.stringify(req.headers, null, indent));
+                    $('#reqBody').html(JSON.stringify(req.data, null, indent));
+
+                    // display RES
+                    if (proxyRes.data.status == 1) {
+                        let res = proxyRes.data.res;
+                        $('#resStatus').html(`${res.status} - ${res.statusText}`);
+                        $('#resHeader').html(JSON.stringify(res.headers, null, indent));
+                        $('#resBody').html(JSON.stringify(res.data, null, indent));
+                    } else {
+                        // display ERR
+                        let err = proxyRes.data.err;
+                        $('#resStatus').html(err.code);
+                        $('#resHeader').html('');
+                        $('#resBody').html(err.message);
+
+                    }
+                }, (error) => {
+                    console.log(error);
+                    $('#resStatus').html(error.code);
+                    $('#resHeader').html('');
+                    $('#resBody').html(error.message);
+                }
+                );
             }
 
         };
 
+        const test_cases = [
+            { 
+                url: 'https://api.nationalize.io/', 
+                data: [['name','Tony']] ,
+                method : 'get'
+            },
+            { 
+                url: 'https://pokeapi.co/api/v2/pokemon', 
+                data: [['limit','10']] ,
+                method : 'get'
+            },
+            { 
+                url: 'http://localhost:3000/test/', 
+                data: [['k1','v1']] ,
+                method : 'get'
+            },
+            { 
+                url: 'http://127.0.0.1:5001/api', 
+                data: [['k1','v1']] ,
+                method : 'post'
+            },
+        ];
+
         function testing() {
-            $('#urlInp').val('http://localhost:5001/api');
-            $('#k1').val('k1').change();
-            $('#v1').val('v1').change();
-            $('#get').click();
+
+            let n = Math.floor(Math.random() * test_cases.length);
+            let test_case = test_cases[n]
+
+            $('#urlInp').val(test_case.url);
+            let data = test_case.data
+            for (let i in  data){
+                let row = parseInt(i)+1
+                // if (paraRow < row){
+                //     $('#addRow').click();
+                // }
+                // cannot reset extra column
+                $(`#k${row}`).val(data[i][0]).change();
+                $(`#v${row}`).val(data[i][1]).change();
+            }
+            $(`#${test_case.method}`).click();
+            // $('#urlInp').val('');
         }
+
     </script>
 </head>
 
 <body>
-    <div class="container-fluid py-4">
+    <div class="container-fluid py-4 px-5">
         <div class="row">
             <h1 class="display-5 fw-bold">request-tools</h1>
             <p class="lead">
-                Tools to send requests with an UI.
+                Send requests with UI.
             </p>
             <button class="btn btn-secondary" onclick="testing()">Test</button>
         </div>
         <hr class="my-4">
         <div class="row">
-            <div class="col-sm-6 mb-3 mb-sm-0">
+            <div class="col-sm-4 mb-3 mb-sm-0">
                 <div class="card">
-                    <h3 class="card-header">Request</h3>
+                    <h4 class="card-header">Input</h4>
                     <form id="reqForm" onsubmit="return false;">
                         <div class="card-body">
                             <div class="mb-3 row">
@@ -176,7 +243,7 @@
                                 <tr>
                                     <td colspan="4">
                                         <div class="d-grid gap-2">
-                                            <button class="btn btn-secondary" onclick="paraAddRow()">
+                                            <button class="btn btn-secondary" onclick="paraAddRow()" id="addRow">
                                                 +
                                             </button>
                                         </div>
@@ -202,24 +269,47 @@
                     </form>
                 </div>
             </div>
-            <div class="col-sm-6 mb-3 mb-sm-0">
+            <div class="col-sm-4 mb-3 mb-sm-0">
                 <div class="card">
-                    <h3 class="card-header">Response</h3>
-                    <div class="card-body">
-                        <var>
-                            <div id="resStatus"></div>
-                        </var>
-                    </div>
-                    <hr class="my-1" />
-                    <div class="card-body">
-                        <code>
-                            <div id="resHeader"></div>
-                        </code>
-                    </div>
-                    <hr class="my-1" />
+                    <h4 class="card-header">Request</h4>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item bg-secondary-subtle">Body</li>
+                    </ul>
                     <div class="card-body">
                         <pre>
+                            <div id="reqBody"></div>
+                        </pre>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item bg-secondary-subtle">Header</li>
+                    </ul>
+                    <div class="card-body">
+                        <pre>
+                            <div id="reqHeader"></div>
+                        </pre>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-4 mb-3 mb-sm-0">
+                <div class="card">
+                    <h4 class="card-header">Response</h4>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item bg-secondary-subtle">Body</li>
+                    </ul>
+                    <div class="card-body">
+                        <code>
+                            <div id="resStatus"></div>
+                        </code>
+                        <pre>
                             <div id="resBody"></div>
+                        </pre>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item bg-secondary-subtle">Header</li>
+                    </ul>
+                    <div class="card-body">
+                        <pre>
+                            <div id="resHeader"></div>
                         </pre>
                     </div>
                 </div>
