@@ -113,7 +113,7 @@ function sendReq() {
 const test_cases = [
     {
         url: 'https://api.nationalize.io/',
-        data: [['name', 'Tony']],
+        data: [['name', 'Elon']],
         method: 'get'
     },
     {

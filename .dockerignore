@@ -1,0 +1,8 @@
+node_modules/
+package-lock.json
+
+.git
+.gitignore
+Dockerfile
+README.md
+docker-compose.yml
